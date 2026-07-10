@@ -17,7 +17,7 @@ jobs:
       - name: signal
         env:
           LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
-        run: python test_line.py
+        run: python gold_signal_cloud.py
       - name: save state
         run: |
           if [ -n "$(git status --porcelain state/)" ]; then
