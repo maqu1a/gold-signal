@@ -1,0 +1,46 @@
+name: gold-sar
+
+# GOLD 5分足 パラボリックSAR転換通知。
+# 実行時間帯: JST 21時〜24時 (ロンドン+NY重複の最も動く3時間) = UTC 12-14時台、平日のみ。
+#   ※M5のSAR転換は頻発するため、時間帯を広げるとLINE無料枠(月200通)を圧迫する。
+#     3時間窓なら月40〜100通程度で余裕。広げる場合は下のcronの「12-14」を変更
+#     (例: 7-15 でJST16〜翌1時、* で終日)。
+# ※GitHubのcronは混雑時に数分遅れる/たまにスキップされる。「瞬間」通知が必要なら
+#   ローカル版 gold_sar_signal.py --loop を使うこと。
+on:
+  schedule:
+    - cron: "*/5 12-14 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gold-sar
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install numpy pandas
+      - name: SAR転換判定＋LINE通知
+        env:
+          LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
+        run: python gold_sar_cloud.py
+      - name: 前回の向きを保存
+        run: |
+          if [ -n "$(git status --porcelain state/)" ]; then
+            git config user.name  "github-actions"
+            git config user.email "github-actions@users.noreply.github.com"
+            git add state/
+            git commit -m "update sar state [skip ci]"
+            git push
+          else
+            echo "変更なし"
+          fi
